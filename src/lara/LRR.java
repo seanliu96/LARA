@@ -36,8 +36,8 @@ public class LRR extends RatingRegression {
 	}
 	
 	@Override
-	protected double init(int v){
-		super.init(v);
+	protected double init(){
+		super.init();
 		double initV = 1;// likelihood for the first iteration won't matter
 		
 		//keep track of the model update trace 
@@ -51,7 +51,7 @@ public class LRR extends RatingRegression {
 		}
 		
 		if (m_model==null){
-			m_model = new LRR_Model(m_k, v);
+			m_model = new LRR_Model(m_k, m_v);
 			m_old_alpha = new double[m_model.m_k];
 	
 			PI = 2.0;//try to seek a better initialization of beta
@@ -384,13 +384,13 @@ public class LRR extends RatingRegression {
 		
 		Arrays.fill(m_diag_beta, 0);
 		do {
-			if (icall%1000==0)
-				System.out.print(".");//keep track of beta update
+//			if (icall%1000==0)
+//				System.out.print(".");//keep track of beta update
 			f = getBetaObjGradient();//to be minimized
 			LBFGS.lbfgs ( n , m , m_beta , f , m_g_beta , false , m_diag_beta , iprint , m_betaTol , 1e-20 , iflag );
 		} while ( iflag[0] != 0 && ++icall <= m_betaStep );
 
-		System.out.print(icall + "\t");
+//		System.out.print(icall + "\t");
 		for(int i=0; i<m_model.m_k; i++)
 			System.arraycopy(m_beta, i*(m_model.m_v+1), m_model.m_beta[i], 0, m_model.m_v+1);
 		return f;
@@ -398,7 +398,9 @@ public class LRR extends RatingRegression {
 	
 	public void EM_est(String filename, int maxIter, double converge){
 		int iter = 0, alpha_exp = 0, alpha_cov = 0;
-		double tag, diff = 10, likelihood = 0, old_likelihood = init(LoadVectors(filename));
+		LoadVectors(filename, true);
+		LoadVectors(filename, false);
+		double tag, diff = 10, likelihood = 0, old_likelihood = init();
 				
 		System.out.println("[Info]Step\toMSE\taMSE\taCorr\tiCorr\tcov(a)\texp(a)\tobj\tconverge");
 		while(iter<Math.min(8, maxIter) || (iter<maxIter && diff>converge)){
@@ -415,7 +417,7 @@ public class LRR extends RatingRegression {
 						alpha_exp ++;
 				}					
 			}			
-			System.out.print(iter + "\t");//sign of finishing E-step
+			System.out.print("\t\t\t"+ iter + "\t");//sign of finishing E-step
 			
 			//M-step
 			likelihood = MStep(iter%4==3);//updating \Sigma too often will hamper \hat\alpha convergence		
@@ -440,9 +442,9 @@ public class LRR extends RatingRegression {
 	}
 	
 	public static void main(String[] args) {
-		LRR model = new LRR(500, 1e-2, 5000, 1e-2, 2.0, "Data/Model/model_base_hotel.dat");//
-		model.EM_est("Data/Vectors/Vector_CHI_4000.dat", 10, 1e-4);
-		model.SavePrediction("Data/Results/prediction.dat");
-		model.SaveModel("Data/Model/model_hotel.dat");
+		LRR model = new LRR(500, 1e-2, 5000, 1e-2, 2.0);
+		model.EM_est("Data/Vectors/tripadvisor/vector_aspect.vec", 10, 1e-4);
+		model.SavePrediction("Data/Results/tripadvisor/prediction.txt");
+		model.SaveModel("Data/Model/tripadvisor/model_aspect.model");
 	}
 }

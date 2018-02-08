@@ -50,27 +50,28 @@ public class RatingRegression {
 		
 		m_collection = null;
 		m_rand = new Random(0);//with fixed random seed in order to get the same train/test split
+
+		m_trainSize = 0;
+		m_testSize = 0;
+		m_collection = new ArrayList<Vector4Review>();
+		m_v = 0;
 	}
 	
-	public int LoadVectors(String filename){
-		return LoadVectors(filename, -1);
+	public void LoadVectors(String filename, boolean isTrain){
+		LoadVectors(filename, -1, isTrain);
 	}
 	
-	public int LoadVectors(String filename, int size){
+	public void LoadVectors(String filename, int size, boolean isTrain){
 		try {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(filename), "UTF-8"));
 			String tmpTxt;
-			
-			m_trainSize = 0;
-			m_testSize = 0;
-			m_collection = new ArrayList<Vector4Review>();
+
 			Vector4Review vct;
-			int pos, len = 0;
-			boolean isTrain;
+			int pos;
 			double[] aspectSize = null;
 			while((tmpTxt=reader.readLine())!=null){
 				pos = tmpTxt.indexOf('\t');
-				if (isTrain = (m_rand.nextDouble()<0.75))//train/test splitting ratio 
+				if (isTrain)//train/test splitting ratio
 					m_trainSize++;
 				else
 					m_testSize++;
@@ -91,7 +92,7 @@ public class RatingRegression {
 				vct.normalize();
 				
 				m_collection.add(vct);
-				len = Math.max(vct.getLength(), len);//max index word
+				m_v = Math.max(vct.getLength(), m_v);//max index word
 				
 				if (size>0 && m_collection.size()>=size)
 					break;
@@ -103,12 +104,10 @@ public class RatingRegression {
 				System.out.print(String.format("\t%.3f", v/sum));
 			System.out.println();
 			
-			System.out.println("[Info]Load " + m_trainSize + "/" + m_testSize + " instances from " + filename + " with feature size " + len);
+			System.out.println("[Info]Load " + m_trainSize + "/" + m_testSize + " instances from " + filename + " with feature size " + m_v);
 			reader.close();
-			return len;
 		} catch (IOException e) {
 			e.printStackTrace();
-			return 0;
 		}
 	}
 	
@@ -150,26 +149,25 @@ public class RatingRegression {
 		}
 		
 		//MSE for overall rating, MSE for aspect rating, item level correlation, aspect level correlation
-		if (iError)
-			System.out.print('x');
-		else
-			System.out.print('o');
-		if (aError)
-			System.out.print('x');
-		else
-			System.out.print('o');
+//		if (iError)
+//			System.out.print('x');
+//		else
+//			System.out.print('o');
+//		if (aError)
+//			System.out.print('x');
+//		else
+//			System.out.print('o');
 		System.out.print(String.format(" %.3f\t%.3f\t%.3f\t%.3f", Math.sqrt(oMSE/m_testSize), Math.sqrt(aMSE/m_testSize), (icorr/m_testSize), (acorr/m_k)));
 		
 	}
 	
-	protected double init(int v){
+	protected double init(){
 		if (m_collection==null || m_collection.isEmpty()){
 			System.err.println("[Error]Load training data first!");
 			return -1;
 		}
 		
 		Vector4Review vct = m_collection.get(0);
-		m_v = v;
 		m_k = vct.m_aspectV.length;
 		
 		m_diag_beta = new double[m_k * (m_v+1)];//to include the bias term for each aspect
@@ -262,7 +260,9 @@ public class RatingRegression {
 	}
 	
 	public void EstimateAspectModel(String filename){
-		init(LoadVectors(filename));
+		LoadVectors(filename, true);
+		LoadVectors(filename, false);
+		init();
 		
 		double f = 0;
 		int iflag[] = {0}, iprint [] = {-1,0}, n = 1+m_v, m = 5, icall = 0;

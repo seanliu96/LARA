@@ -5,32 +5,39 @@ public class SpaVector {
 	public double[] m_value;
 	
 	public SpaVector(String[] container){
-		m_index = new int[container.length];
-		m_value = new double[container.length];
-		
-		int pos;
-		for(int i=0; i<container.length; i++){
+
+		int pos, size = 0, index = 0;
+		for(int i=0; i<container.length; i++) {
 			pos = container[i].indexOf(':');
-			m_index[i] = 1 + Integer.valueOf(container[i].substring(0,pos));
-			m_value[i] = Double.valueOf(container[i].substring(pos+1));
+			if (pos != -1) size++;
+		}
+		m_index = new int[size];
+		m_value = new double[size];
+
+		for(int i=0; i<container.length && index < size; i++){
+			pos = container[i].indexOf(':');
+			if (pos == -1) continue;
+			m_index[index] = 1 + Integer.valueOf(container[i].substring(0,pos));
+			m_value[index] = Double.valueOf(container[i].substring(pos+1));
+			index++;
 		}
 	}
-	
+
 	public double L1Norm(){
 		double sum = 0;
 		for(double v:m_value)
 			sum += Math.abs(v);
 		return sum;
 	}
-	
+
 	public void normalize(double norm){
 		for(int i=0; i<m_value.length; i++)
 			m_value[i] /= norm;
 	}
-	
+
 	public int getLength(){
 		int i = m_index.length;
-		return m_index[i-1];
+		return i > 0 ? m_index[i-1] : 0;
 	}
 	
 	public double dotProduct(double[] weight){

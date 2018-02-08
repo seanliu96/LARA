@@ -245,7 +245,8 @@ public class Mcsrch
 
 			if ( stp[0] == LBFGS.stpmax && f <= ftest1 && dg <= dgtest ) info[0] = 5;
 
-			if ( stp[0] == LBFGS.stpmin && ( f > ftest1 || dg >= dgtest ) ) info[0] = 4;
+			if ( stp[0] == LBFGS.stpmin && ( f > ftest1 || dg >= dgtest ) )
+				info[0] = 4;
 
 			if ( nfev[0] >= maxfev ) info[0] = 3;
 

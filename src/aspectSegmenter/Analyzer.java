@@ -121,9 +121,9 @@ public class Analyzer {
 			String[] container;
 			HashSet<String> keywords;
 			while( (tmpTxt=reader.readLine()) != null ){
-				container = tmpTxt.split("\t");
+				container = tmpTxt.split("\\s");
 				keywords = new HashSet<String>(container.length-1);
-				for(int i=1; i<container.length; i++)
+				for(int i=0; i<container.length; i++)
 					keywords.add(container[i]);
 				m_keywords.add(new _Aspect(container[0], keywords));
 				System.out.println("Keywords for " + container[0] + ": " + keywords.size());
@@ -211,81 +211,50 @@ public class Analyzer {
 		try {
 			File f = new File(filename);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(f), "UTF-8"));
-			String tmpTxt, fname = getHotelID(f.getName()), title = "", content = null;
+			String tmpTxt, hotelId;
+            String[] container, ratingsStrs;
 			int review_size = 0;
-			
+
 			Review review = null;
 			String[] stns, tokens;
 			Span[] stn_spans;
-			int[] ratings = new int[1+ASPECT_SET_NEW.length];
-			Hotel tHotel = new Hotel(fname);
+			int[] ratings = new int[1+m_keywords.size()];
 			while((tmpTxt=reader.readLine()) != null){
-				if (tmpTxt.startsWith("<Title>"))
-		    		title = tmpTxt.substring("<Title>".length()+1, tmpTxt.length()-1);
-				else if (tmpTxt.startsWith("<Overall>")){//only read those aspects
-					try{
-			    		double r = Double.valueOf(tmpTxt.substring("<Overall>".length()));
-			    		ratings[0] = (int)r;
-					} catch (Exception e){
-						System.err.println("Error format: " + fname);
-						reader.close();
-						return;
-					}
-		    	}
-		    	else if (tmpTxt.startsWith("<Value>"))
-		    		ratings[1] = Integer.valueOf(tmpTxt.substring("<Value>".length()));
-		    	else if (tmpTxt.startsWith("<Rooms>"))
-		    		ratings[2] = Integer.valueOf(tmpTxt.substring("<Rooms>".length()));
-		    	else if (tmpTxt.startsWith("<Location>"))
-		    		ratings[3] = Integer.valueOf(tmpTxt.substring("<Location>".length()));
-		    	else if (tmpTxt.startsWith("<Cleanliness>"))
-		    		ratings[4] = Integer.valueOf(tmpTxt.substring("<Cleanliness>".length()));
-		    	else if (tmpTxt.startsWith("<Service>"))
-		    		ratings[5] = Integer.valueOf(tmpTxt.substring("<Service>".length()));
-				else if (tmpTxt.startsWith("<Content>"))
-					content = cleanReview(tmpTxt.substring("<Content>".length()));
-				else if (tmpTxt.isEmpty() && content != null){
-					stn_spans = m_stnDector.sentPosDetect(content);//list of the sentence spans
-					if (stn_spans.length<3){
-						content = null;
-						Arrays.fill(ratings, 0);
-						continue;
-					}
-					
-					stns = Span.spansToStrings(stn_spans, content);
-					review = new Review(fname, Integer.toString(review_size), ratings);
-					for(int i=0; i<stns.length; i++){
-						tokens = m_tokenizer.tokenize(stns[i]);
-						if (tokens!=null && tokens.length>2)//discard too short sentences
-							review.addStn(stns[i], tokens, m_postagger.tag(tokens), getLemma(tokens), m_stopwords);
-				    }
-					
-					if (review.getStnSize()>2){
-						if (title.isEmpty()==false){//include the title as content
-							tokens = m_tokenizer.tokenize(title);
-							if (tokens!=null && tokens.length>2)//discard too short sentences
-								review.addStn(title, tokens, m_postagger.tag(tokens), getLemma(tokens), m_stopwords);
-						}
-						
-						if (m_isLoadCV==false)//didn't load the controlled vocabulary
-							expendVocabular(review);
-						tHotel.addReview(review);
-						review_size ++;
-					}
-					
-					content = null;
-					Arrays.fill(ratings, 0);
-				}
+			    if (!tmpTxt.isEmpty()) {
+                    container = tmpTxt.split("\t\t");
+                    try{
+                        hotelId = Integer.toString(m_hotelList.size());
+                        Hotel tHotel = new Hotel(hotelId);
+                        ratingsStrs = container[0].split(" ");
+                        for (int i = 0; i < ratingsStrs.length && i < ratings.length; ++i) {
+                            ratings[i] = Integer.valueOf(ratingsStrs[i]);
+                            if (ratings[i] < 0) continue;
+                            else if (ratings[i] <= 2) ratings[i] = 1;
+                            else if (ratings[i] == 3) ratings[i] = -1;
+                            else ratings[i] = 2;
+                        }
+                        if (ratings[0] == -1) continue;
+                        stns = container[1].split("<ssssss>");
+                        review = new Review(hotelId, Integer.toString(review_size), ratings);
+                        for(int i=0; i<stns.length; i++){
+                            tokens = m_tokenizer.tokenize(stns[i]);
+                            if (tokens!=null && tokens.length>2)//discard too short sentences
+                                review.addStn(stns[i], tokens, m_postagger.tag(tokens), getLemma(tokens), m_stopwords);
+                        }
+                        if (m_isLoadCV==false)//didn't load the controlled vocabulary
+                            expendVocabular(review);
+                        tHotel.addReview(review);
+                        review_size ++;
+                        m_hotelList.add(tHotel);
+                        Arrays.fill(ratings, 0);
+                    } catch (Exception e){
+                        System.err.println("Error format: " + tmpTxt);
+                        reader.close();
+                        return;
+                    }
+                }
 			}
 			reader.close();
-			
-			if (tHotel.getReviewSize()>1){
-				m_hotelList.add(tHotel);
-				if (m_hotelList.size()%100==0)
-					System.out.print(".");
-				if (m_hotelList.size()%10000==0)
-					System.out.println(".");
-			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -337,7 +306,7 @@ public class Analyzer {
 					}
 				}					
 				
-				if (ready4output(vectors, counts)){
+				if (true || ready4output(vectors, counts)){
 					Save2Vector(writer, hotel.m_ID, reviewSize, ratings, counts, vectors);
 					outputSize ++;
 				}
@@ -359,13 +328,13 @@ public class Analyzer {
 		int aspectID, wordID;
 		DecimalFormat formater = new DecimalFormat("#.###");
 		writer.write(hotelID);
-		double score;
+		double[] score = new double[1+m_keywords.size()];
 		for(aspectID=0; aspectID<ratings.length; aspectID++){
 			if (counts[aspectID]>0)
-				score = ratings[aspectID]/counts[aspectID];
+				score[aspectID] = ratings[aspectID]/counts[aspectID];
 			else 
-				score = ratings[0]/counts[0];//using overall rating as default
-			writer.write("\t" + formater.format(score));
+				score[aspectID] = -1;
+			writer.write("\t" + formater.format(score[aspectID]));
 		}
 		writer.write("\n");
 		
@@ -678,14 +647,15 @@ public class Analyzer {
 	}
 	
 	static public void main(String[] args){
-		Analyzer analyzer = new Analyzer("Data/Seeds/hotel_bootstrapping.dat", "Data/Seeds/stopwords.dat", 
+		Analyzer analyzer = new Analyzer("Data/Seeds/tripadvisor/aspect.words", "Data/Seeds/stopwords.dat",
 				"Data/Model/NLP/en-sent.zip", "Data/Model/NLP/en-token.zip", "Data/Model/NLP/en-pos-maxent.bin");
 		//analyzer.LoadVocabulary("Data/Seeds/hotel_vocabulary_CHI.dat");
-		analyzer.LoadDirectory("Data/Reviews/", ".dat");
-		//analyzer.LoadReviews("e:/Data/Reviews/Tmp/hotel_111849.dat");
-		analyzer.BootStrapping("Data/Seeds/hotel_bootstrapping_test.dat");
+		//analyzer.LoadDirectory("Data/Reviews/", ".dat");
+		analyzer.LoadReviews("Data/Reviews/tripadvisor/train");
+		analyzer.LoadReviews("Data/Reviews/tripadvisor/dev");
+		analyzer.BootStrapping("Data/Seeds/tripadvisor/aspect_bootstrapping.words");
 		//analyzer.OutputWordListWithInfo("Data/Seeds/hotel_vocabulary_May10.dat");
-		analyzer.Save2Vectors("Data/Vectors/vector_CHI_4000.dat");	
+		analyzer.Save2Vectors("Data/Vectors/tripadvisor/vector_aspect.vec");
 		//analyzer.SaveVocabulary("Data/Seeds/hotel_vocabulary.dat");
 	}
 }

@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="NLP">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/Data/Model/NLP/en-sent.zip!/" />
+      <root url="jar://$PROJECT_DIR$/Data/Model/NLP/en-token.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

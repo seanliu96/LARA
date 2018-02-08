@@ -20,8 +20,11 @@ public class Vector4Review {
 		m_4train = isTrain;
 		
 		m_ratings = new double[ratings.length];
-		for(int i=0; i<ratings.length; i++)
+		for(int i=0; i<ratings.length; i++) {
 			m_ratings[i] = Double.valueOf(ratings[i]);
+			if (m_ratings[i] == -1)
+				m_ratings[i] = m_ratings[0];
+		}
 		m_aspectV = new SpaVector[m_ratings.length-1];
 		
 		// structures for prediction
@@ -50,17 +53,15 @@ public class Vector4Review {
 	}
 	
 	public void normalize(){
-		double norm = getDocLength(), aSize;
+		double norm = getDocLength() + m_aspectV.length * 1e-20, aSize;
 		Random rand = new Random();
 		for(int i=0; i<m_aspectV.length; i++)
 		{
 			SpaVector vct = m_aspectV[i];
-			
-			aSize = vct.L1Norm();
+			aSize = vct.L1Norm() + 1e-20;
 			vct.normalize(aSize);
 			m_alpha_hat[i] = rand.nextDouble() + Math.log(aSize / norm); // an estimate of aspect weight
 		}
-		
 		norm = Utilities.expSum(m_alpha_hat);
 		for(int i=0; i<m_aspectV.length; i++)
 			m_alpha[i] = Math.exp(m_alpha_hat[i])/norm;
